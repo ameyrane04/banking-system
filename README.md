@@ -2,6 +2,7 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 ## Getting Started
 
+For a quick demo - https://banking-system-blond.vercel.app/   (sign in credentials- amey+65@gmail.com, password - bank@123)
 First, run the development server:
 
 ```bash
