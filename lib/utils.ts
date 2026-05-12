@@ -187,7 +187,9 @@ export function decryptId(id: string) {
   return atob(id);
 }
 
-export const getTransactionStatus = (date: Date) => {
+export const getTransactionStatus = (date: Date, category?: string) => {
+  if (category === "Transfer") return "Success";
+
   const today = new Date();
   const twoDaysAgo = new Date(today);
   twoDaysAgo.setDate(today.getDate() - 2);
@@ -197,14 +199,16 @@ export const getTransactionStatus = (date: Date) => {
 
 export const authFormSchema = (type: string) => z.object({
   // sign up
-  firstName: type === 'sign-in' ? z.string().optional() : z.string().min(3),
-  lastName: type === 'sign-in' ? z.string().optional() : z.string().min(3),
-  address1: type === 'sign-in' ? z.string().optional() : z.string().max(50),
-  city: type === 'sign-in' ? z.string().optional() : z.string().max(50),
-  state: type === 'sign-in' ? z.string().optional() : z.string().min(2).max(2),
-  postalCode: type === 'sign-in' ? z.string().optional() : z.string().min(3).max(6),
-  dateOfBirth: type === 'sign-in' ? z.string().optional() : z.string().min(3),
-  ssn: type === 'sign-in' ? z.string().optional() : z.string().min(3),
+  firstName: type === 'sign-in' ? z.string().optional() : z.string().trim().min(2, "First name is required"),
+  lastName: type === 'sign-in' ? z.string().optional() : z.string().trim().min(2, "Last name is required"),
+  address1: type === 'sign-in' ? z.string().optional() : z.string().trim().min(3, "Address is required").max(50),
+  city: type === 'sign-in' ? z.string().optional() : z.string().trim().min(2, "City is required").max(50),
+  state: type === 'sign-in' ? z.string().optional() : z.string().trim().transform((value) => value.toUpperCase()).pipe(
+    z.string().regex(/^[A-Z]{2}$/, "Use a 2-letter state abbreviation, like NY")
+  ),
+  postalCode: type === 'sign-in' ? z.string().optional() : z.string().trim().regex(/^\d{5}(-\d{4})?$/, "Use a valid US ZIP code"),
+  dateOfBirth: type === 'sign-in' ? z.string().optional() : z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
+  ssn: type === 'sign-in' ? z.string().optional() : z.string().trim().regex(/^\d{4}$/, "Use the last 4 digits of your SSN"),
   // both
   email: z.string().email(),
   password: z.string().min(8),

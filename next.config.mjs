@@ -2,14 +2,14 @@ import {withSentryConfig} from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     typescript:{
-        ignoreBuildErrors: true
+        ignoreBuildErrors: false
     },
     eslint:{
-        ignoreDuringBuilds: true
+        ignoreDuringBuilds: false
     }
 };
 
-export default withSentryConfig(nextConfig, {
+const sentryOptions = {
 // For all available options, see:
 // https://github.com/getsentry/sentry-webpack-plugin#options
 
@@ -17,7 +17,9 @@ export default withSentryConfig(nextConfig, {
 silent: true,
 org: "jsm-x9",
 project: "javascript-nextjs",
-}, {
+};
+
+const sentryNextOptions = {
 // For all available options, see:
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 
@@ -44,4 +46,8 @@ disableLogger: true,
 // https://docs.sentry.io/product/crons/
 // https://vercel.com/docs/cron-jobs
 automaticVercelMonitors: true,
-});
+};
+
+export default process.env.SENTRY_DSN
+    ? withSentryConfig(nextConfig, sentryOptions, sentryNextOptions)
+    : nextConfig;

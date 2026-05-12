@@ -15,6 +15,17 @@ import { parseStringify } from "../utils";
 import { getTransactionsByBankId } from "./transaction.actions";
 import { getBanks, getBank } from "./user.actions";
 
+const getTransferBalanceAdjustment = (transactions: Transaction[], bankId: string) => {
+  return transactions.reduce((total, transaction) => {
+    const amount = Number(transaction.amount) || 0;
+
+    if (transaction.senderBankId === bankId) return total - amount;
+    if (transaction.receiverBankId === bankId) return total + amount;
+
+    return total;
+  }, 0);
+};
+
 // Get multiple bank accounts
 export const getAccounts = async ({ userId }: getAccountsProps) => {
   try {
@@ -29,6 +40,15 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
         });
         const accountData = accountsResponse.data.accounts[0];
 
+        const transferTransactionsData = await getTransactionsByBankId({
+          bankId: bank.$id,
+        });
+        const transferTransactions = transferTransactionsData?.documents || [];
+        const balanceAdjustment = getTransferBalanceAdjustment(
+          transferTransactions,
+          bank.$id
+        );
+
         // get institution info from plaid
         const institution = await getInstitution({
           institutionId: accountsResponse.data.item.institution_id!,
@@ -36,8 +56,8 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
 
         const account = {
           id: accountData.account_id,
-          availableBalance: accountData.balances.available!,
-          currentBalance: accountData.balances.current!,
+          availableBalance: (accountData.balances.available || 0) + balanceAdjustment,
+          currentBalance: (accountData.balances.current || 0) + balanceAdjustment,
           institutionId: institution.institution_id,
           name: accountData.name,
           officialName: accountData.official_name,
@@ -45,7 +65,7 @@ export const getAccounts = async ({ userId }: getAccountsProps) => {
           type: accountData.type as string,
           subtype: accountData.subtype! as string,
           appwriteItemId: bank.$id,
-          sharaebleId: bank.shareableId,
+          shareableId: bank.shareableId,
         };
 
         return account;
@@ -79,6 +99,10 @@ export const getAccount = async ({ appwriteItemId }: getAccountProps) => {
     const transferTransactionsData = await getTransactionsByBankId({
       bankId: bank.$id,
     });
+    const balanceAdjustment = getTransferBalanceAdjustment(
+      transferTransactionsData?.documents || [],
+      bank.$id
+    );
 
     const transferTransactions = transferTransactionsData.documents.map(
       (transferData: Transaction) => ({
@@ -103,8 +127,8 @@ export const getAccount = async ({ appwriteItemId }: getAccountProps) => {
 
     const account = {
       id: accountData.account_id,
-      availableBalance: accountData.balances.available!,
-      currentBalance: accountData.balances.current!,
+      availableBalance: (accountData.balances.available || 0) + balanceAdjustment,
+      currentBalance: (accountData.balances.current || 0) + balanceAdjustment,
       institutionId: institution.institution_id,
       name: accountData.name,
       officialName: accountData.official_name,
@@ -151,6 +175,7 @@ export const getTransactions = async ({
   accessToken,
 }: getTransactionsProps) => {
   let hasMore = true;
+  let cursor: string | undefined;
   let transactions: any = [];
 
   try {
@@ -158,11 +183,12 @@ export const getTransactions = async ({
     while (hasMore) {
       const response = await plaidClient.transactionsSync({
         access_token: accessToken,
+        cursor,
       });
 
       const data = response.data;
 
-      transactions = response.data.added.map((transaction) => ({
+      const addedTransactions = data.added.map((transaction) => ({
         id: transaction.transaction_id,
         name: transaction.name,
         paymentChannel: transaction.payment_channel,
@@ -175,6 +201,8 @@ export const getTransactions = async ({
         image: transaction.logo_url,
       }));
 
+      transactions = [...transactions, ...addedTransactions];
+      cursor = data.next_cursor;
       hasMore = data.has_more;
     }
 

@@ -27,6 +27,17 @@ const CategoryBadge = ({ category }: CategoryBadgeProps) => {
 } 
 
 const TransactionsTable = ({ transactions }: TransactionTableProps) => {
+  if (!transactions.length) {
+    return (
+      <div className="empty-transactions">
+        <p className="text-16 font-semibold text-gray-900">No transactions yet</p>
+        <p className="text-14 text-gray-600">
+          Linked account activity and Horizon transfers will appear here once they are available.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <Table>
       <TableHeader className="bg-[#f9fafb]">
@@ -41,14 +52,14 @@ const TransactionsTable = ({ transactions }: TransactionTableProps) => {
       </TableHeader>
       <TableBody>
         {transactions.map((t: Transaction) => {
-          const status = getTransactionStatus(new Date(t.date))
-          const amount = formatAmount(t.amount)
+          const status = getTransactionStatus(new Date(t.date), t.category)
+          const amount = formatAmount(Number(t.amount))
 
           const isDebit = t.type === 'debit';
           const isCredit = t.type === 'credit';
 
           return (
-            <TableRow key={t.id} className={`${isDebit || amount[0] === '-' ? 'bg-[#FFFBFA]' : 'bg-[#F6FEF9]'} !over:bg-none !border-b-DEFAULT`}>
+            <TableRow key={t.id} className={`${isDebit || amount[0] === '-' ? 'bg-[#FFFBFA]' : 'bg-[#F6FEF9]'} !hover:bg-none !border-b-DEFAULT`}>
               <TableCell className="max-w-[250px] pl-2 pr-10">
                 <div className="flex items-center gap-3">
                   <h1 className="text-14 truncate font-semibold text-[#344054]">

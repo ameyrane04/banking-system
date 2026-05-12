@@ -1,11 +1,12 @@
 import HeaderBox from '@/components/HeaderBox'
+import FinancialInsights from '@/components/FinancialInsights';
 import RecentTransactions from '@/components/RecentTransactions';
 import RightSidebar from '@/components/RightSidebar';
 import TotalBalanceBox from '@/components/TotalBalanceBox';
 import { getAccount, getAccounts } from '@/lib/actions/bank.actions';
 import { getLoggedInUser } from '@/lib/actions/user.actions';
 
-const Home = async ({ searchParams: { id, page } }: SearchParamProps) => {
+const Home = async ({ searchParams: { id, page, transfer } }: SearchParamProps) => {
   const currentPage = Number(page as string) || 1;
   const loggedIn = await getLoggedInUser();
   const accounts = await getAccounts({ 
@@ -30,10 +31,28 @@ const Home = async ({ searchParams: { id, page } }: SearchParamProps) => {
             subtext="Access and manage your account and transactions efficiently."
           />
 
+          {transfer === "success" && (
+            <div className="success-banner">
+              <div>
+                <p className="text-16 font-semibold text-success-700">
+                  Transfer submitted successfully
+                </p>
+                <p className="text-14 text-success-700">
+                  Your Dwolla transfer was created and the Horizon ledger has been updated.
+                </p>
+              </div>
+            </div>
+          )}
+
           <TotalBalanceBox 
             accounts={accountsData}
             totalBanks={accounts?.totalBanks}
             totalCurrentBalance={accounts?.totalCurrentBalance}
+          />
+
+          <FinancialInsights
+            accounts={accountsData}
+            transactions={account?.transactions || []}
           />
         </header>
 

@@ -29,6 +29,7 @@ const AuthForm = ({ type }: { type: string }) => {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   const formSchema = authFormSchema(type);
 
@@ -44,6 +45,7 @@ const AuthForm = ({ type }: { type: string }) => {
     // 2. Define a submit handler.
     const onSubmit = async (data: z.infer<typeof formSchema>) => {
       setIsLoading(true);
+      setAuthError("");
 
       try {
         // Sign up with Appwrite & create plaid token
@@ -54,7 +56,7 @@ const AuthForm = ({ type }: { type: string }) => {
             lastName: data.lastName!,
             address1: data.address1!,
             city: data.city!,
-            state: data.state!,
+            state: data.state!.toUpperCase(),
             postalCode: data.postalCode!,
             dateOfBirth: data.dateOfBirth!,
             ssn: data.ssn!,
@@ -63,6 +65,11 @@ const AuthForm = ({ type }: { type: string }) => {
           }
 
           const newUser = await signUp(userData);
+
+          if(newUser?.error) {
+            setAuthError(newUser.error);
+            return;
+          }
 
           setUser(newUser);
         }
@@ -73,10 +80,16 @@ const AuthForm = ({ type }: { type: string }) => {
             password: data.password,
           })
 
+          if(response?.error) {
+            setAuthError(response.error);
+            return;
+          }
+
           if(response) router.push('/')
         }
       } catch (error) {
         console.log(error);
+        setAuthError("Something went wrong. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -144,6 +157,12 @@ const AuthForm = ({ type }: { type: string }) => {
               <CustomInput control={form.control} name='password' label="Password" placeholder='Enter your password' />
 
               <div className="flex flex-col gap-4">
+                {authError && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-14 text-red-700">
+                    {authError}
+                  </div>
+                )}
+
                 <Button type="submit" disabled={isLoading} className="form-btn">
                   {isLoading ? (
                     <>

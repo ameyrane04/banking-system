@@ -29,7 +29,10 @@ import { Textarea } from "./ui/textarea";
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
   name: z.string().min(4, "Transfer note is too short"),
-  amount: z.string().min(4, "Amount is too short"),
+  amount: z.string().refine((value) => {
+    const amount = Number(value);
+    return Number.isFinite(amount) && amount > 0;
+  }, "Enter an amount greater than 0"),
   senderBank: z.string().min(4, "Please select a valid bank account"),
   sharableId: z.string().min(8, "Please select a valid sharable Id"),
 });
@@ -37,6 +40,7 @@ const formSchema = z.object({
 const PaymentTransferForm = ({ accounts }: PaymentTransferFormProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [transferError, setTransferError] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,6 +55,7 @@ const PaymentTransferForm = ({ accounts }: PaymentTransferFormProps) => {
 
   const submit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true);
+    setTransferError("");
 
     try {
       const receiverAccountId = decryptId(data.sharableId);
@@ -58,6 +63,11 @@ const PaymentTransferForm = ({ accounts }: PaymentTransferFormProps) => {
         accountId: receiverAccountId,
       });
       const senderBank = await getBank({ documentId: data.senderBank });
+
+      if (!receiverBank || !senderBank) {
+        setTransferError("Could not find the sender or receiver bank account.");
+        return;
+      }
 
       const transferParams = {
         sourceFundingSourceUrl: senderBank.fundingSourceUrl,
@@ -83,11 +93,14 @@ const PaymentTransferForm = ({ accounts }: PaymentTransferFormProps) => {
 
         if (newTransaction) {
           form.reset();
-          router.push("/");
+          router.push("/?transfer=success");
         }
       }
     } catch (error) {
       console.error("Submitting create transfer request failed: ", error);
+      setTransferError(
+        error instanceof Error ? error.message : "Transfer failed. Please try again."
+      );
     }
 
     setIsLoading(false);
@@ -237,6 +250,12 @@ const PaymentTransferForm = ({ accounts }: PaymentTransferFormProps) => {
         />
 
         <div className="payment-transfer_btn-box">
+          {transferError && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-14 text-red-700">
+              {transferError}
+            </div>
+          )}
+
           <Button type="submit" className="payment-transfer_btn">
             {isLoading ? (
               <>

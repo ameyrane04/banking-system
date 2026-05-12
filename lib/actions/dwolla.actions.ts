@@ -2,6 +2,19 @@
 
 import { Client } from "dwolla-v2";
 
+const getDwollaErrorMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  try {
+    const parsed = JSON.parse(message);
+    const embeddedError = parsed?._embedded?.errors?.[0]?.message;
+
+    return embeddedError || parsed?.message || message;
+  } catch {
+    return message;
+  }
+};
+
 const getEnvironment = (): "production" | "sandbox" => {
   const environment = process.env.DWOLLA_ENV as string;
 
@@ -36,6 +49,7 @@ export const createFundingSource = async (
       .then((res) => res.headers.get("location"));
   } catch (err) {
     console.error("Creating a Funding Source Failed: ", err);
+    throw new Error(getDwollaErrorMessage(err));
   }
 };
 
@@ -48,6 +62,7 @@ export const createOnDemandAuthorization = async () => {
     return authLink;
   } catch (err) {
     console.error("Creating an On Demand Authorization Failed: ", err);
+    throw new Error(getDwollaErrorMessage(err));
   }
 };
 
@@ -60,6 +75,7 @@ export const createDwollaCustomer = async (
       .then((res) => res.headers.get("location"));
   } catch (err) {
     console.error("Creating a Dwolla Customer Failed: ", err);
+    throw new Error(getDwollaErrorMessage(err));
   }
 };
 
@@ -88,6 +104,7 @@ export const createTransfer = async ({
       .then((res) => res.headers.get("location"));
   } catch (err) {
     console.error("Transfer fund failed: ", err);
+    throw new Error(getDwollaErrorMessage(err));
   }
 };
 
@@ -110,5 +127,6 @@ export const addFundingSource = async ({
     return await createFundingSource(fundingSourceOptions);
   } catch (err) {
     console.error("Transfer fund failed: ", err);
+    throw new Error(getDwollaErrorMessage(err));
   }
 };

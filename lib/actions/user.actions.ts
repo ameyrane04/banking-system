@@ -4,7 +4,7 @@ import { ID, Query } from "node-appwrite";
 import { createAdminClient, createSessionClient } from "../appwrite";
 import { cookies } from "next/headers";
 import { encryptId, extractCustomerIdFromUrl, parseStringify } from "../utils";
-import { CountryCode, ProcessorTokenCreateRequest, ProcessorTokenCreateRequestProcessorEnum, Products } from "plaid";
+import { CountryCode, LinkTokenCreateRequest, ProcessorTokenCreateRequest, ProcessorTokenCreateRequestProcessorEnum, Products } from "plaid";
 
 import { plaidClient } from '@/lib/plaid';
 import { revalidatePath } from "next/cache";
@@ -15,6 +15,16 @@ const {
   APPWRITE_USER_COLLECTION_ID: USER_COLLECTION_ID,
   APPWRITE_BANK_COLLECTION_ID: BANK_COLLECTION_ID,
 } = process.env;
+
+const getAuthErrorMessage = (error: unknown) => {
+  const appwriteError = error as { type?: string; message?: string; response?: { message?: string } };
+
+  if (appwriteError.type === "user_already_exists") {
+    return "An account with this email already exists. Please sign in or use a different email.";
+  }
+
+  return appwriteError.response?.message || appwriteError.message || "Something went wrong. Please try again.";
+};
 
 export const getUserInfo = async ({ userId }: getUserInfoProps) => {
   try {
@@ -49,6 +59,7 @@ export const signIn = async ({ email, password }: signInProps) => {
     return parseStringify(user);
   } catch (error) {
     console.error('Error', error);
+    return parseStringify({ error: getAuthErrorMessage(error) });
   }
 }
 
@@ -102,6 +113,7 @@ export const signUp = async ({ password, ...userData }: SignUpParams) => {
     return parseStringify(newUser);
   } catch (error) {
     console.error('Error', error);
+    return parseStringify({ error: getAuthErrorMessage(error) });
   }
 }
 
@@ -133,14 +145,27 @@ export const logoutAccount = async () => {
 
 export const createLinkToken = async (user: User) => {
   try {
-    const tokenParams = {
+    const products = (process.env.PLAID_PRODUCTS ?? "auth")
+      .split(",")
+      .map((product) => product.trim())
+      .filter(Boolean) as Products[];
+
+    const countryCodes = (process.env.PLAID_COUNTRY_CODES ?? "US")
+      .split(",")
+      .map((country) => country.trim())
+      .filter(Boolean) as CountryCode[];
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+    const tokenParams: LinkTokenCreateRequest = {
       user: {
         client_user_id: user.$id
       },
       client_name: `${user.firstName} ${user.lastName}`,
-      products: ['auth'] as Products[],
+      products,
       language: 'en',
-      country_codes: ['US'] as CountryCode[],
+      country_codes: countryCodes,
+      webhook: siteUrl ? `${siteUrl}/api/webhooks/plaid` : undefined,
     }
 
     const response = await plaidClient.linkTokenCreate(tokenParams);
